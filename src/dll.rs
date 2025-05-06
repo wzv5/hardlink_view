@@ -1,7 +1,6 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::OnceLock,
-};
+#![allow(non_snake_case, non_camel_case_types, non_upper_case_globals)]
+
+use std::{path::PathBuf, sync::OnceLock};
 
 use windows::{
     Win32::{
@@ -10,22 +9,39 @@ use windows::{
             HINSTANCE, HMODULE, MAX_PATH, S_OK,
         },
         System::{
-            Com::IClassFactory, LibraryLoader::GetModuleFileNameW,
+            Com::{CLSCTX_INPROC_SERVER, CoCreateInstance, IClassFactory},
+            LibraryLoader::GetModuleFileNameW,
             SystemServices::DLL_PROCESS_ATTACH,
         },
-        UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify},
     },
-    core::{GUID, HRESULT, IUnknown, Interface, Result},
+    core::{GUID, HRESULT, HSTRING, IUnknown, IUnknown_Vtbl, Interface, PCWSTR, interface, w},
 };
 
 use crate::{
     logger,
+    resource::IDR_HARDLINKVIEW_RGS,
     shellext::{Factory, HARDLINKVIEW_CLSID},
     util::VecU16StringExt,
 };
 
 pub static DLL_INSTANCE: OnceLock<usize> = OnceLock::new();
 pub static DLL_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+const CLSID_Registrar: GUID = GUID::from_u128(0x44ec053a_400f_11d0_9dcd_00a0c90391d3);
+
+#[interface("44ec053b-400f-11d0-9dcd-00a0c90391d3")]
+unsafe trait IRegistrar: IUnknown {
+    fn AddReplacement(&self, key: PCWSTR, item: PCWSTR) -> HRESULT;
+    fn _placeholder1(&self);
+    fn _placeholder2(&self);
+    fn _placeholder3(&self);
+    fn _placeholder4(&self);
+    fn _placeholder5(&self);
+    fn _placeholder6(&self);
+    fn _placeholder7(&self);
+    fn ResourceRegister(&self, resFileName: PCWSTR, nID: u32, szType: PCWSTR) -> HRESULT;
+    fn ResourceUnregister(&self, resFileName: PCWSTR, nID: u32, szType: PCWSTR) -> HRESULT;
+}
 
 #[unsafe(no_mangle)]
 unsafe extern "system" fn DllGetClassObject(
@@ -45,53 +61,43 @@ unsafe extern "system" fn DllGetClassObject(
     }
 }
 
-fn register(clsid: &GUID, dllpath: &Path) -> Result<()> {
-    let clsid = format!("{{{clsid:?}}}");
-    if clsid.is_empty() {
-        return E_UNEXPECTED.ok();
+fn register_class_object(register: bool) -> HRESULT {
+    unsafe {
+        let registrar: IRegistrar =
+            match CoCreateInstance(&CLSID_Registrar, None, CLSCTX_INPROC_SERVER) {
+                Ok(obj) => obj,
+                Err(err) => return err.code(),
+            };
+        let dll_path = HSTRING::from(DLL_PATH.get().unwrap().as_os_str());
+        let hr = registrar.AddReplacement(w!("MODULE"), PCWSTR(dll_path.as_ptr()));
+        if hr != S_OK {
+            return hr;
+        }
+        let hr = if register {
+            registrar.ResourceRegister(
+                PCWSTR(dll_path.as_ptr()),
+                IDR_HARDLINKVIEW_RGS,
+                w!("REGISTRY"),
+            )
+        } else {
+            registrar.ResourceUnregister(
+                PCWSTR(dll_path.as_ptr()),
+                IDR_HARDLINKVIEW_RGS,
+                w!("REGISTRY"),
+            )
+        };
+        return hr;
     }
-    let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
-    let (k, _) =
-        hklm.create_subkey(format!("SOFTWARE\\Classes\\CLSID\\{clsid}\\InProcServer32"))?;
-    k.set_value("", &dllpath.as_os_str())?;
-    k.set_value("ThreadingModel", &"Apartment")?;
-    let (k, _) = hklm.create_subkey(format!(
-        "SOFTWARE\\Classes\\*\\shellex\\PropertySheetHandlers\\{clsid}"
-    ))?;
-    k.set_value("", &clsid)?;
-    Ok(())
-}
-
-fn unregister(clsid: &GUID) -> Result<()> {
-    let clsid = format!("{{{clsid:?}}}");
-    if clsid.is_empty() {
-        return E_UNEXPECTED.ok();
-    }
-    let hklm = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
-    hklm.delete_subkey_all(format!("SOFTWARE\\Classes\\CLSID\\{clsid}"))?;
-    hklm.delete_subkey_all(format!(
-        "SOFTWARE\\Classes\\*\\shellex\\PropertySheetHandlers\\{clsid}"
-    ))?;
-    Ok(())
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "system" fn DllRegisterServer() -> HRESULT {
-    if let Err(e) = register(&HARDLINKVIEW_CLSID, DLL_PATH.get().unwrap()) {
-        let _ = unregister(&HARDLINKVIEW_CLSID);
-        return e.into();
-    }
-    unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None) };
-    S_OK
+    register_class_object(true)
 }
 
 #[unsafe(no_mangle)]
 unsafe extern "system" fn DllUnregisterServer() -> HRESULT {
-    if let Err(e) = unregister(&HARDLINKVIEW_CLSID) {
-        return e.into();
-    }
-    unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None) };
-    S_OK
+    register_class_object(false)
 }
 
 #[unsafe(no_mangle)]

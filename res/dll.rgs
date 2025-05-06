@@ -1,0 +1,24 @@
+HKCR
+{
+    NoRemove CLSID
+    {
+        ForceRemove {552DB720-103A-4783-9EB4-834E5E5915BE}
+        {
+            InprocServer32 = s '%MODULE%'
+            {
+                val ThreadingModel = s 'Apartment'
+            }
+        }
+    }
+
+    NoRemove *
+    {
+        NoRemove ShellEx
+        {
+            NoRemove PropertySheetHandlers
+            {
+                ForceRemove {552DB720-103A-4783-9EB4-834E5E5915BE} = s '{552DB720-103A-4783-9EB4-834E5E5915BE}'
+            }
+        }
+    }
+}

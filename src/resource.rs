@@ -1,2 +1,3 @@
+pub const IDR_HARDLINKVIEW_RGS: u32 = 101;
 pub const IDD_HARDLINKVIEW_PROPPAGE: i32 = 1000;
 pub const IDC_EDIT1: i32 = 1001;
