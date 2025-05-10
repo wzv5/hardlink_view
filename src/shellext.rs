@@ -25,7 +25,10 @@ use windows::{
     core::{BOOL, GUID, HSTRING, IUnknown, Interface, PCWSTR, Ref, Result, implement},
 };
 
-use crate::{dlg, hardlink, resource, util::VecU16StringExt};
+use crate::{
+    dlg, hardlink, resource,
+    util::{VecU16StringExt, load_string},
+};
 
 // {552DB720-103A-4783-9EB4-834E5E5915BE}
 pub const HARDLINKVIEW_CLSID: GUID = GUID::from_u128(0x552db720_103a_4783_9eb4_834e5e5915be);
@@ -90,7 +93,7 @@ impl IShellPropSheetExt_Impl for HardlinkView_Impl {
         if self.files.borrow().len() > 1 {
             return Ok(());
         }
-        let title = HSTRING::from("硬链接");
+        let title = HSTRING::from(load_string(resource::IDS_PAGE_TITLE));
         let mut psp = PROPSHEETPAGEW::default();
         psp.dwSize = std::mem::size_of::<PROPSHEETPAGEW>() as _;
         psp.dwFlags = PSP_USETITLE | PSP_USECALLBACK;

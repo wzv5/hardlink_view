@@ -60,7 +60,6 @@ pub struct Dialog {
 
 impl Dialog {
     pub fn new(path: PathBuf, links: Vec<PathBuf>) -> Self {
-        log::warn!("Dialog 创建 {}", path.to_string_lossy());
         Self { path, links }
     }
 
@@ -74,11 +73,5 @@ impl Dialog {
             s.push_str(format!("[{}] {}\r\n", i + 1, l.to_string_lossy()).as_str());
         }
         s
-    }
-}
-
-impl Drop for Dialog {
-    fn drop(&mut self) {
-        log::warn!("Dialog 析构 {}", self.path.to_string_lossy());
     }
 }
