@@ -56,17 +56,19 @@ impl IShellExtInit_Impl for HardlinkView_Impl {
             };
             if let Some(mut medium) = pdtobj.as_ref().and_then(|obj| obj.GetData(&fe).ok()) {
                 let count = DragQueryFileW(HDROP(medium.u.hGlobal.0), u32::MAX, None);
-                let mut buff = Vec::<u16>::new();
-                for i in 0..count {
-                    let cch = DragQueryFileW(HDROP(medium.u.hGlobal.0), i, None);
-                    if cch > 0 {
-                        buff.resize((cch + 1) as _, 0);
-                        DragQueryFileW(HDROP(medium.u.hGlobal.0), i, Some(&mut buff));
-                        let p = PathBuf::from(buff.to_os_string());
-                        if p.is_file() {
-                            if let Ok(links) = hardlink::get_hardlink(&p) {
-                                if !links.is_empty() {
-                                    self.files.borrow_mut().push((p, links));
+                if count == 1 {
+                    let mut buff = Vec::<u16>::new();
+                    for i in 0..count {
+                        let cch = DragQueryFileW(HDROP(medium.u.hGlobal.0), i, None);
+                        if cch > 0 {
+                            buff.resize((cch + 1) as _, 0);
+                            DragQueryFileW(HDROP(medium.u.hGlobal.0), i, Some(&mut buff));
+                            let p = PathBuf::from(buff.to_os_string());
+                            if p.is_file() {
+                                if let Ok(links) = hardlink::get_hardlink(&p) {
+                                    if !links.is_empty() {
+                                        self.files.borrow_mut().push((p, links));
+                                    }
                                 }
                             }
                         }

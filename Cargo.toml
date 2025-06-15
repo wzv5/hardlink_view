@@ -7,14 +7,12 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-windows-core = "0.61.0"
-winreg = "0.55.0"
+windows-core = "0.61.2"
 widestring = "1.2.0"
 log = "0.4.27"
-#vc-ltl = "5.2.1"
 
 [dependencies.windows]
-version = "0.61.1"
+version = "0.61.3"
 features = [
     "Win32_System_Com",
     "Win32_UI_Shell",
@@ -32,7 +30,7 @@ features = [
 ]
 
 [build-dependencies]
-embed-resource = "3.0.2"
+embed-resource = "3.0.3"
 
 [profile.release]
 lto = true
